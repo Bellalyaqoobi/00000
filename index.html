@@ -670,27 +670,6 @@
         const SUPABASE_URL = 'https://wuyhybsocviswsfnixdp.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1eWh5YnNvY3Zpc3dzZm5peGRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY0Nzg2MzIsImV4cCI6MjA4MjA1NDYzMn0.DXdz7v17Q3qmX18hCMFn6HmBwBQK0-EViKZlfaezDhQ';
         
-        // نکته مهم: باید جدول students را در Supabase ایجاد کنید
-        // می‌توانید این کار را از طریق SQL Editor در پنل Supabase انجام دهید:
-        /*
-        CREATE TABLE students (
-            id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-            name TEXT NOT NULL,
-            father_name TEXT NOT NULL,
-            village TEXT NOT NULL,
-            father_phone TEXT NOT NULL,
-            student_id TEXT UNIQUE NOT NULL,
-            status TEXT NOT NULL CHECK (status IN ('active', 'suspended')),
-            registration_date DATE DEFAULT CURRENT_DATE,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        );
-        
-        -- همچنین باید RLS (Row Level Security) را فعال کنید
-        -- و یک Policy برای دسترسی عمومی ایجاد کنید:
-        CREATE POLICY "Allow all operations for authenticated users only" ON students
-        FOR ALL USING (true);
-        */
-
         // Initialize Supabase client
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
@@ -719,6 +698,119 @@
             }, 3000);
         }
 
+        // تابع تست اتصال به دیتابیس
+        async function testDatabaseConnection() {
+            try {
+                const { data, error } = await supabase
+                    .from('students')
+                    .select('*', { count: 'exact', head: true });
+                
+                if (error) {
+                    // اگر خطا مربوط به عدم وجود جدول باشد
+                    if (error.code === '42P01') {
+                        console.error('جدول students وجود ندارد');
+                        return false;
+                    }
+                    throw error;
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('خطا در اتصال به دیتابیس:', error);
+                return false;
+            }
+        }
+
+        // تابع ایجاد جدول در دیتابیس
+        async function createStudentsTable() {
+            try {
+                showNotification('در حال ایجاد جدول در دیتابیس...', 'info');
+                
+                // از طریق REST API برای ایجاد جدول استفاده می‌کنیم
+                // این فقط یک تلاش است، در صورت عدم موفقیت کاربر باید دستی جدول ایجاد کند
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify({
+                        query: `
+                            CREATE TABLE IF NOT EXISTS students (
+                                id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                                name TEXT NOT NULL,
+                                father_name TEXT NOT NULL,
+                                village TEXT NOT NULL,
+                                father_phone TEXT NOT NULL,
+                                student_id TEXT UNIQUE NOT NULL,
+                                status TEXT NOT NULL CHECK (status IN ('active', 'suspended')),
+                                registration_date DATE DEFAULT CURRENT_DATE,
+                                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                            );
+                            
+                            ALTER TABLE students ENABLE ROW LEVEL SECURITY;
+                            
+                            CREATE POLICY "Enable all for authenticated users only" ON students
+                            FOR ALL USING (auth.role() = 'authenticated');
+                            
+                            CREATE POLICY "Enable all for anon users" ON students
+                            FOR ALL USING (true);
+                        `
+                    })
+                });
+                
+                if (response.ok) {
+                    showNotification('جدول با موفقیت ایجاد شد', 'success');
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.error('خطا در ایجاد جدول:', error);
+                showNotification('لطفا جدول را در پنل Supabase ایجاد کنید', 'error');
+                return false;
+            }
+        }
+
+        // تابع راهنمای ایجاد جدول
+        function showTableCreationGuide() {
+            const guideMessage = `
+                🔧 راهنمای ایجاد جدول در Supabase:
+                
+                1. وارد پنل Supabase شوید
+                2. پروژه خود را انتخاب کنید
+                3. به بخش "SQL Editor" بروید
+                4. کد زیر را کپی کرده و اجرا کنید:
+                
+                SQL Code:
+                -----------------------------------------
+                CREATE TABLE students (
+                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    father_name TEXT NOT NULL,
+                    village TEXT NOT NULL,
+                    father_phone TEXT NOT NULL,
+                    student_id TEXT UNIQUE NOT NULL,
+                    status TEXT NOT NULL CHECK (status IN ('active', 'suspended')),
+                    registration_date DATE DEFAULT CURRENT_DATE,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                
+                -- غیرفعال کردن RLS یا اضافه کردن پالیسی
+                ALTER TABLE students DISABLE ROW LEVEL SECURITY;
+                -- یا
+                -- ALTER TABLE students ENABLE ROW LEVEL SECURITY;
+                -- CREATE POLICY "Allow all operations" ON students FOR ALL USING (true);
+                -----------------------------------------
+                
+                5. پس از اجرا، دکمه "Refresh Data" را بزنید
+            `;
+            
+            console.log(guideMessage);
+            alert('لطفا جدول students را در Supabase ایجاد کنید. راهنمایی در کنسول مرورگر موجود است.');
+        }
+
         // ذخیره شاگرد در Supabase
         async function saveStudent(student) {
             try {
@@ -734,7 +826,18 @@
                     }])
                     .select();
                 
-                if (error) throw error;
+                if (error) {
+                    // اگر جدول وجود ندارد
+                    if (error.code === '42P01') {
+                        const created = await createStudentsTable();
+                        if (created) {
+                            // دوباره تلاش کنید
+                            return await saveStudent(student);
+                        }
+                        throw new Error('TABLE_NOT_EXISTS');
+                    }
+                    throw error;
+                }
                 return data[0];
             } catch (error) {
                 console.error('Error saving student:', error);
@@ -746,6 +849,21 @@
         async function fetchStudents() {
             try {
                 showLoading(true);
+                
+                // ابتدا اتصال را تست می‌کنیم
+                const isConnected = await testDatabaseConnection();
+                
+                if (!isConnected) {
+                    showNotification('در حال تلاش برای ایجاد جدول...', 'info');
+                    const tableCreated = await createStudentsTable();
+                    
+                    if (!tableCreated) {
+                        showTableCreationGuide();
+                        showLoading(false);
+                        return;
+                    }
+                }
+                
                 const { data, error } = await supabase
                     .from('students')
                     .select('*')
@@ -771,6 +889,11 @@
             } catch (error) {
                 console.error('Error fetching students:', error);
                 showNotification('خطا در بارگذاری داده‌ها: ' + error.message, 'error');
+                
+                // اگر خطای جدول بود، راهنمایی نشان بده
+                if (error.code === '42P01') {
+                    showTableCreationGuide();
+                }
             } finally {
                 showLoading(false);
             }
@@ -902,7 +1025,7 @@
                 const tr = document.createElement('tr');
                 const statusClass = student.status === 'active' ? 'status-active' : 'status-suspended';
                 const statusText = student.status === 'active' ? 'تایید شده' : 'تعلیق شده';
-                const regDate = new Date(student.registrationDate).toLocaleDateString('fa-IR');
+                const regDate = student.registrationDate ? new Date(student.registrationDate).toLocaleDateString('fa-IR') : 'ثبت نشده';
                 
                 tr.innerHTML = `
                     <td>${index + 1}</td>
@@ -915,13 +1038,13 @@
                     <td>${regDate}</td>
                     <td class="no-print">
                         <div class="actions">
-                            <button class="action-btn" style="background-color: #3498db; color: white;" onclick="editStudent(${student.id})">
+                            <button class="action-btn" style="background-color: #3498db; color: white;" onclick="editStudent('${student.id}')">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="action-btn" style="background-color: ${student.status === 'active' ? '#e74c3c' : '#27ae60'}; color: white;" onclick="toggleStatus(${student.id})">
+                            <button class="action-btn" style="background-color: ${student.status === 'active' ? '#e74c3c' : '#27ae60'}; color: white;" onclick="toggleStatus('${student.id}')">
                                 <i class="fas ${student.status === 'active' ? 'fa-user-slash' : 'fa-user-check'}"></i>
                             </button>
-                            <button class="action-btn" style="background-color: #7f8c8d; color: white;" onclick="deleteStudent(${student.id})">
+                            <button class="action-btn" style="background-color: #7f8c8d; color: white;" onclick="deleteStudent('${student.id}')">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -999,12 +1122,14 @@
                 console.error('Error saving student:', error);
                 if (error.code === '23505') { // کد خطای تکراری در PostgreSQL
                     showNotification('شماره کارت تکراری است!', 'error');
+                } else if (error.message === 'TABLE_NOT_EXISTS') {
+                    showTableCreationGuide();
                 } else {
                     showNotification('خطا در ثبت شاگرد: ' + error.message, 'error');
                 }
             } finally {
                 const submitBtn = document.getElementById('submit-btn');
-                submitBtn.innerHTML = originalText;
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> ذخیره شاگرد';
                 submitBtn.disabled = false;
             }
         });
@@ -1015,15 +1140,15 @@
             showNotification('فرم بازنشانی شد', 'info');
         });
 
-        // تغییر وضعیت شاگرد (تایید/تعلیق)
-        function toggleStatus(id) {
+        // تغییر وضعیت شاگرد (تایید/تعلیق) - تابع گلوبال
+        window.toggleStatus = function(id) {
             if (confirm('آیا از تغییر وضعیت این شاگرد مطمئن هستید؟')) {
                 toggleStudentStatus(id);
             }
-        }
+        };
 
-        // حذف شاگرد
-        async function deleteStudent(id) {
+        // حذف شاگرد - تابع گلوبال
+        window.deleteStudent = async function(id) {
             if (confirm('آیا از حذف این شاگرد مطمئن هستید؟ این عمل قابل برگشت نیست.')) {
                 try {
                     showLoading(true);
@@ -1048,10 +1173,10 @@
                     showLoading(false);
                 }
             }
-        }
+        };
 
-        // ویرایش شاگرد
-        function editStudent(id) {
+        // ویرایش شاگرد - تابع گلوبال
+        window.editStudent = function(id) {
             const student = students.find(s => s.id === id);
             if (!student) return;
             
@@ -1068,7 +1193,7 @@
             
             // نمایش مودال
             document.getElementById('edit-modal').style.display = 'flex';
-        }
+        };
 
         // ذخیره تغییرات ویرایش
         document.getElementById('edit-form').addEventListener('submit', async function(e) {
@@ -1142,7 +1267,7 @@
                 }
             } finally {
                 const saveEditBtn = document.getElementById('save-edit-btn');
-                saveEditBtn.innerHTML = originalText;
+                saveEditBtn.innerHTML = '<i class="fas fa-save"></i> ذخیره تغییرات';
                 saveEditBtn.disabled = false;
             }
         });
@@ -1415,29 +1540,38 @@
             setupRealtimeSubscription();
         });
 
-        // تنظیم Real-time subscription (اختیاری)
+        // تنظیم Real-time subscription
         async function setupRealtimeSubscription() {
             try {
-                const subscription = supabase
-                    .channel('students-changes')
-                    .on('postgres_changes', 
-                        { 
-                            event: '*', 
-                            schema: 'public', 
-                            table: 'students' 
-                        }, 
+                const channel = supabase
+                    .channel('students-channel')
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: '*',
+                            schema: 'public',
+                            table: 'students'
+                        },
                         (payload) => {
-                            console.log('Change received:', payload);
-                            fetchStudents(); // رفرش داده‌ها
+                            console.log('تغییر در دیتابیس:', payload);
+                            // وقتی تغییری در دیتابیس رخ داد، داده‌ها را رفرش کن
+                            fetchStudents();
                         }
                     )
-                    .subscribe();
+                    .subscribe((status) => {
+                        if (status === 'SUBSCRIBED') {
+                            console.log('اتصال real-time برقرار شد');
+                        }
+                    });
                     
-                console.log('Real-time subscription established');
+                // برگرداندن channel برای unsubscribe کردن اگر نیاز بود
+                return channel;
             } catch (error) {
-                console.warn('Real-time subscription failed:', error);
+                console.warn('اتصال real-time برقرار نشد:', error);
+                showNotification('اتصال real-time برقرار نشد. تغییرات باید دستی رفرش شوند.', 'warning');
+                return null;
             }
         }
     </script>
 </body>
-  </html>
+    </html>
