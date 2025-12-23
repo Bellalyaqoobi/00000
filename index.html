@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سیستم مدیریت شاگردان خوارزمی</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- کتابخانه jsPDF برای خروجی PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* استایل‌ها همانند قبل باقی می‌مانند */
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --dark-color: #2c3e50;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 20px 0;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        .logo {
+            font-size: 2.5rem;
+            margin-left: 15px;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 992px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 25px;
+        }
+
+        .card-title {
+            font-size: 1.4rem;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--light-color);
+            display: flex;
+            align-items: center;
+        }
+
+        .card-title i {
+            margin-left: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 25px;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .btn:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background-color: var(--success-color);
+        }
+
+        .btn-success:hover {
+            background-color: #219653;
+        }
+
+        .btn-warning {
+            background-color: var(--warning-color);
+        }
+
+        .btn-warning:hover {
+            background-color: #e67e22;
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+        }
+
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+
+        .btn-group .btn {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .action-btn {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background-color: rgba(39, 174, 96, 0.1);
+            color: var(--success-color);
+        }
+
+        .status-suspended {
+            background-color: rgba(231, 76, 60, 0.1);
+            color: var(--danger-color);
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: right;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            font-weight: 700;
+            color: var(--primary-color);
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+            text-align: center;
+            border-top: 4px solid var(--secondary-color);
+        }
+
+        .stat-card.total {
+            border-top-color: var(--primary-color);
+        }
+
+        .stat-card.active {
+            border-top-color: var(--success-color);
+        }
+
+        .stat-card.suspended {
+            border-top-color: var(--danger-color);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin: 10px 0;
+        }
+
+        .stat-title {
+            font-size: 1rem;
+            color: #666;
+        }
+
+        .export-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px 20px;
+            color: #777;
+        }
+
+        .no-data i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #ddd;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9rem;
+            border-top: 1px solid #eee;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .close-modal {
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #777;
+        }
+
+        .search-filter {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-filter input {
+            flex: 1;
+        }
+
+        .search-filter select {
+            width: 150px;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 6px;
+            color: white;
+            font-weight: 600;
+            z-index: 1001;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s;
+        }
+
+        .notification.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .notification.success {
+            background-color: var(--success-color);
+        }
+
+        .notification.error {
+            background-color: var(--danger-color);
+        }
+
+        .notification.info {
+            background-color: var(--secondary-color);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1002;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .loading-overlay.hidden {
+            display: none;
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            
+            .card {
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+            
+            table {
+                border: 1px solid #ddd;
+            }
+            
+            th, td {
+                border: 1px solid #ddd;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="notification" id="notification"></div>
+    
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loading-overlay">
+        <div>
+            <div class="loading"></div>
+            <span>در حال بارگذاری...</span>
+        </div>
+    </div>
+    
+    <div class="container">
+        <header>
+            <div class="logo-container">
+                <i class="fas fa-graduation-cap logo"></i>
+                <div>
+                    <h1>سیستم مدیریت شاگردان خوارزمی</h1>
+                    <p class="subtitle">مدیریت ثبت‌نام، تایید و تعلیق شاگردان کورس</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="stats">
+            <div class="stat-card total">
+                <div class="stat-title">مجموع شاگردان</div>
+                <div class="stat-number" id="total-students">0</div>
+            </div>
+            <div class="stat-card active">
+                <div class="stat-title">شاگردان تایید شده</div>
+                <div class="stat-number" id="active-students">0</div>
+            </div>
+            <div class="stat-card suspended">
+                <div class="stat-title">شاگردان تعلیق شده</div>
+                <div class="stat-number" id="suspended-students">0</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="left-column">
+                <div class="card">
+                    <h2 class="card-title"><i class="fas fa-user-plus"></i> ثبت شاگرد جدید</h2>
+                    <form id="student-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="name">اسم شاگرد</label>
+                                <input type="text" id="name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="father-name">اسم والد</label>
+                                <input type="text" id="father-name" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="village">قریه</label>
+                            <input type="text" id="village" required>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="father-phone">شماره والد</label>
+                                <input type="tel" id="father-phone" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="student-id">شماره کارت</label>
+                                <input type="text" id="student-id" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="status">وضعیت</label>
+                            <select id="status" required>
+                                <option value="active">تایید شده</option>
+                                <option value="suspended">تعلیق شده</option>
+                            </select>
+                        </div>
+                        
+                        <div class="btn-group">
+                            <button type="submit" class="btn btn-success" id="submit-btn">
+                                <i class="fas fa-save"></i> ذخیره شاگرد
+                            </button>
+                            <button type="button" class="btn" id="reset-form">
+                                <i class="fas fa-redo"></i> پاک کردن فرم
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card no-print">
+                    <h2 class="card-title"><i class="fas fa-download"></i> خروجی و گزارش</h2>
+                    <p>گزارش‌های خود را دریافت کنید:</p>
+                    
+                    <div class="export-options">
+                        <button class="btn btn-success" id="export-excel">
+                            <i class="fas fa-file-excel"></i> خروجی اکسل
+                        </button>
+                        <button class="btn btn-warning" id="print-report">
+                            <i class="fas fa-print"></i> چاپ گزارش
+                        </button>
+                        <button class="btn btn-danger" id="export-pdf">
+                            <i class="fas fa-file-pdf"></i> خروجی PDF
+                        </button>
+                        <button class="btn" id="refresh-data" style="background-color: #9b59b6;">
+                            <i class="fas fa-sync-alt"></i> رفرش داده‌ها
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-column">
+                <div class="card">
+                    <h2 class="card-title"><i class="fas fa-users"></i> لیست شاگردان</h2>
+                    
+                    <div class="search-filter no-print">
+                        <input type="text" id="search-input" placeholder="جستجوی شاگرد...">
+                        <select id="filter-status">
+                            <option value="all">همه وضعیت‌ها</option>
+                            <option value="active">تایید شده</option>
+                            <option value="suspended">تعلیق شده</option>
+                        </select>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table id="students-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>اسم شاگرد</th>
+                                    <th>اسم والد</th>
+                                    <th>قریه</th>
+                                    <th>شماره والد</th>
+                                    <th>شماره کارت</th>
+                                    <th>وضعیت</th>
+                                    <th>تاریخ ثبت</th>
+                                    <th class="no-print">عملیات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="students-list">
+                                <!-- داده‌های شاگردان اینجا نمایش داده می‌شود -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>سیستم مدیریت شاگردان خوارزمی - تمام حقوق محفوظ است © 2023</p>
+            <p>تعداد کل شاگردان: <span id="footer-total">0</span> | تایید شده: <span id="footer-active">0</span> | تعلیق شده: <span id="footer-suspended">0</span></p>
+        </footer>
+    </div>
+
+    <!-- مودال ویرایش شاگرد -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>ویرایش اطلاعات شاگرد</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <form id="edit-form">
+                <input type="hidden" id="edit-id">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-name">اسم شاگرد</label>
+                        <input type="text" id="edit-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-father-name">اسم والد</label>
+                        <input type="text" id="edit-father-name" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-village">قریه</label>
+                    <input type="text" id="edit-village" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-father-phone">شماره والد</label>
+                        <input type="tel" id="edit-father-phone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-student-id">شماره کارت</label>
+                        <input type="text" id="edit-student-id" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-status">وضعیت</label>
+                    <select id="edit-status" required>
+                        <option value="active">تایید شده</option>
+                        <option value="suspended">تعلیق شده</option>
+                    </select>
+                </div>
+                
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-success" id="save-edit-btn">
+                        <i class="fas fa-save"></i> ذخیره تغییرات
+                    </button>
+                    <button type="button" class="btn btn-danger" id="cancel-edit">
+                        انصراف
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- کتابخانه SheetJS برای اکسل -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        // تنظیمات Supabase با اطلاعات شما
+        const SUPABASE_URL = 'https://wuyhybsocviswsfnixdp.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1eWh5YnNvY3Zpc3dzZm5peGRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY0Nzg2MzIsImV4cCI6MjA4MjA1NDYzMn0.DXdz7v17Q3qmX18hCMFn6HmBwBQK0-EViKZlfaezDhQ';
+        
+        // نکته مهم: باید جدول students را در Supabase ایجاد کنید
+        // می‌توانید این کار را از طریق SQL Editor در پنل Supabase انجام دهید:
+        /*
+        CREATE TABLE students (
+            id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+            name TEXT NOT NULL,
+            father_name TEXT NOT NULL,
+            village TEXT NOT NULL,
+            father_phone TEXT NOT NULL,
+            student_id TEXT UNIQUE NOT NULL,
+            status TEXT NOT NULL CHECK (status IN ('active', 'suspended')),
+            registration_date DATE DEFAULT CURRENT_DATE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+        
+        -- همچنین باید RLS (Row Level Security) را فعال کنید
+        -- و یک Policy برای دسترسی عمومی ایجاد کنید:
+        CREATE POLICY "Allow all operations for authenticated users only" ON students
+        FOR ALL USING (true);
+        */
+
+        // Initialize Supabase client
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        let students = [];
+        let editStudentId = null;
+        let filteredStudents = [];
+
+        // تابع نمایش لودینگ
+        function showLoading(show) {
+            const loadingOverlay = document.getElementById('loading-overlay');
+            if (show) {
+                loadingOverlay.classList.remove('hidden');
+            } else {
+                loadingOverlay.classList.add('hidden');
+            }
+        }
+
+        // نمایش نوتیفیکیشن
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // ذخیره شاگرد در Supabase
+        async function saveStudent(student) {
+            try {
+                const { data, error } = await supabase
+                    .from('students')
+                    .insert([{
+                        name: student.name,
+                        father_name: student.fatherName,
+                        village: student.village,
+                        father_phone: student.fatherPhone,
+                        student_id: student.studentId,
+                        status: student.status
+                    }])
+                    .select();
+                
+                if (error) throw error;
+                return data[0];
+            } catch (error) {
+                console.error('Error saving student:', error);
+                throw error;
+            }
+        }
+
+        // دریافت همه شاگردان از Supabase
+        async function fetchStudents() {
+            try {
+                showLoading(true);
+                const { data, error } = await supabase
+                    .from('students')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                // تبدیل داده‌ها به فرمت مورد نیاز
+                students = data.map(student => ({
+                    id: student.id,
+                    name: student.name,
+                    fatherName: student.father_name,
+                    village: student.village,
+                    fatherPhone: student.father_phone,
+                    studentId: student.student_id,
+                    status: student.status,
+                    registrationDate: student.registration_date || student.created_at
+                }));
+                
+                updateStats();
+                filterAndRenderStudents();
+                showNotification('داده‌ها با موفقیت بارگذاری شدند', 'success');
+            } catch (error) {
+                console.error('Error fetching students:', error);
+                showNotification('خطا در بارگذاری داده‌ها: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // به‌روزرسانی شاگرد در Supabase
+        async function updateStudent(id, updates) {
+            try {
+                const { data, error } = await supabase
+                    .from('students')
+                    .update({
+                        name: updates.name,
+                        father_name: updates.fatherName,
+                        village: updates.village,
+                        father_phone: updates.fatherPhone,
+                        student_id: updates.studentId,
+                        status: updates.status
+                    })
+                    .eq('id', id)
+                    .select();
+                
+                if (error) throw error;
+                return data[0];
+            } catch (error) {
+                console.error('Error updating student:', error);
+                throw error;
+            }
+        }
+
+        // حذف شاگرد از Supabase
+        async function deleteStudentFromDB(id) {
+            try {
+                const { error } = await supabase
+                    .from('students')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) throw error;
+                return true;
+            } catch (error) {
+                console.error('Error deleting student:', error);
+                throw error;
+            }
+        }
+
+        // تغییر وضعیت شاگرد
+        async function toggleStudentStatus(id) {
+            try {
+                const student = students.find(s => s.id === id);
+                if (!student) return;
+                
+                const newStatus = student.status === 'active' ? 'suspended' : 'active';
+                
+                const { error } = await supabase
+                    .from('students')
+                    .update({ status: newStatus })
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                // به‌روزرسانی آرایه محلی
+                student.status = newStatus;
+                updateStats();
+                filterAndRenderStudents();
+                
+                showNotification(`وضعیت شاگرد به "${newStatus === 'active' ? 'تایید شده' : 'تعلیق شده'}" تغییر یافت`);
+            } catch (error) {
+                console.error('Error toggling status:', error);
+                showNotification('خطا در تغییر وضعیت: ' + error.message, 'error');
+            }
+        }
+
+        // آپدیت آمار
+        function updateStats() {
+            const total = students.length;
+            const active = students.filter(s => s.status === 'active').length;
+            const suspended = students.filter(s => s.status === 'suspended').length;
+            
+            document.getElementById('total-students').textContent = total;
+            document.getElementById('active-students').textContent = active;
+            document.getElementById('suspended-students').textContent = suspended;
+            
+            // آپدیت فوتر
+            document.getElementById('footer-total').textContent = total;
+            document.getElementById('footer-active').textContent = active;
+            document.getElementById('footer-suspended').textContent = suspended;
+        }
+
+        // فیلتر و نمایش شاگردان
+        function filterAndRenderStudents() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const filterStatus = document.getElementById('filter-status').value;
+            
+            filteredStudents = students.filter(student => {
+                const matchesSearch = 
+                    student.name.toLowerCase().includes(searchTerm) ||
+                    student.fatherName.toLowerCase().includes(searchTerm) ||
+                    student.village.toLowerCase().includes(searchTerm) ||
+                    student.fatherPhone.includes(searchTerm) ||
+                    student.studentId.toLowerCase().includes(searchTerm);
+                
+                const matchesStatus = filterStatus === 'all' || student.status === filterStatus;
+                
+                return matchesSearch && matchesStatus;
+            });
+            
+            renderStudentsTable();
+        }
+
+        // نمایش شاگردان در جدول
+        function renderStudentsTable() {
+            const tbody = document.getElementById('students-list');
+            
+            if (filteredStudents.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="no-data">
+                            <i class="fas fa-user-graduate"></i>
+                            <p>${students.length === 0 ? 'هنوز هیچ شاگردی ثبت نشده است' : 'نتیجه‌ای یافت نشد'}</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            
+            filteredStudents.forEach((student, index) => {
+                const tr = document.createElement('tr');
+                const statusClass = student.status === 'active' ? 'status-active' : 'status-suspended';
+                const statusText = student.status === 'active' ? 'تایید شده' : 'تعلیق شده';
+                const regDate = new Date(student.registrationDate).toLocaleDateString('fa-IR');
+                
+                tr.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${student.name}</td>
+                    <td>${student.fatherName}</td>
+                    <td>${student.village}</td>
+                    <td dir="ltr">${student.fatherPhone}</td>
+                    <td>${student.studentId}</td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    <td>${regDate}</td>
+                    <td class="no-print">
+                        <div class="actions">
+                            <button class="action-btn" style="background-color: #3498db; color: white;" onclick="editStudent(${student.id})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="action-btn" style="background-color: ${student.status === 'active' ? '#e74c3c' : '#27ae60'}; color: white;" onclick="toggleStatus(${student.id})">
+                                <i class="fas ${student.status === 'active' ? 'fa-user-slash' : 'fa-user-check'}"></i>
+                            </button>
+                            <button class="action-btn" style="background-color: #7f8c8d; color: white;" onclick="deleteStudent(${student.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                
+                tbody.appendChild(tr);
+            });
+        }
+
+        // اضافه کردن شاگرد جدید
+        document.getElementById('student-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('name').value.trim();
+            const fatherName = document.getElementById('father-name').value.trim();
+            const village = document.getElementById('village').value.trim();
+            const fatherPhone = document.getElementById('father-phone').value.trim();
+            const studentId = document.getElementById('student-id').value.trim();
+            const status = document.getElementById('status').value;
+            
+            // اعتبارسنجی اولیه
+            if (!name || !fatherName || !village || !fatherPhone || !studentId) {
+                showNotification('لطفا تمام فیلدها را پر کنید', 'error');
+                return;
+            }
+            
+            // بررسی وجود شماره کارت تکراری
+            const duplicateId = students.find(s => s.studentId === studentId);
+            if (duplicateId) {
+                showNotification('شماره کارت تکراری است! لطفا شماره کارت دیگری وارد کنید.', 'error');
+                return;
+            }
+            
+            try {
+                const submitBtn = document.getElementById('submit-btn');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<div class="loading"></div> در حال ذخیره...';
+                submitBtn.disabled = true;
+                
+                // ذخیره در Supabase
+                const newStudent = {
+                    name,
+                    fatherName,
+                    village,
+                    fatherPhone,
+                    studentId,
+                    status
+                };
+                
+                const savedStudent = await saveStudent(newStudent);
+                
+                // اضافه کردن به آرایه محلی
+                students.unshift({
+                    id: savedStudent.id,
+                    name: savedStudent.name,
+                    fatherName: savedStudent.father_name,
+                    village: savedStudent.village,
+                    fatherPhone: savedStudent.father_phone,
+                    studentId: savedStudent.student_id,
+                    status: savedStudent.status,
+                    registrationDate: savedStudent.registration_date || savedStudent.created_at
+                });
+                
+                // به‌روزرسانی UI
+                updateStats();
+                filterAndRenderStudents();
+                
+                // ریست کردن فرم
+                this.reset();
+                
+                // نمایش پیام موفقیت
+                showNotification('شاگرد با موفقیت ثبت شد!');
+            } catch (error) {
+                console.error('Error saving student:', error);
+                if (error.code === '23505') { // کد خطای تکراری در PostgreSQL
+                    showNotification('شماره کارت تکراری است!', 'error');
+                } else {
+                    showNotification('خطا در ثبت شاگرد: ' + error.message, 'error');
+                }
+            } finally {
+                const submitBtn = document.getElementById('submit-btn');
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+
+        // ریست کردن فرم
+        document.getElementById('reset-form').addEventListener('click', function() {
+            document.getElementById('student-form').reset();
+            showNotification('فرم بازنشانی شد', 'info');
+        });
+
+        // تغییر وضعیت شاگرد (تایید/تعلیق)
+        function toggleStatus(id) {
+            if (confirm('آیا از تغییر وضعیت این شاگرد مطمئن هستید؟')) {
+                toggleStudentStatus(id);
+            }
+        }
+
+        // حذف شاگرد
+        async function deleteStudent(id) {
+            if (confirm('آیا از حذف این شاگرد مطمئن هستید؟ این عمل قابل برگشت نیست.')) {
+                try {
+                    showLoading(true);
+                    const student = students.find(s => s.id === id);
+                    const studentName = student ? student.name : '';
+                    
+                    // حذف از Supabase
+                    await deleteStudentFromDB(id);
+                    
+                    // حذف از آرایه محلی
+                    students = students.filter(s => s.id !== id);
+                    
+                    // به‌روزرسانی UI
+                    updateStats();
+                    filterAndRenderStudents();
+                    
+                    showNotification(`شاگرد "${studentName}" با موفقیت حذف شد`);
+                } catch (error) {
+                    console.error('Error deleting student:', error);
+                    showNotification('خطا در حذف شاگرد: ' + error.message, 'error');
+                } finally {
+                    showLoading(false);
+                }
+            }
+        }
+
+        // ویرایش شاگرد
+        function editStudent(id) {
+            const student = students.find(s => s.id === id);
+            if (!student) return;
+            
+            editStudentId = id;
+            
+            // پر کردن فرم ویرایش
+            document.getElementById('edit-id').value = student.id;
+            document.getElementById('edit-name').value = student.name;
+            document.getElementById('edit-father-name').value = student.fatherName;
+            document.getElementById('edit-village').value = student.village;
+            document.getElementById('edit-father-phone').value = student.fatherPhone;
+            document.getElementById('edit-student-id').value = student.studentId;
+            document.getElementById('edit-status').value = student.status;
+            
+            // نمایش مودال
+            document.getElementById('edit-modal').style.display = 'flex';
+        }
+
+        // ذخیره تغییرات ویرایش
+        document.getElementById('edit-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('edit-name').value.trim();
+            const fatherName = document.getElementById('edit-father-name').value.trim();
+            const village = document.getElementById('edit-village').value.trim();
+            const fatherPhone = document.getElementById('edit-father-phone').value.trim();
+            const studentId = document.getElementById('edit-student-id').value.trim();
+            const status = document.getElementById('edit-status').value;
+            
+            // اعتبارسنجی
+            if (!name || !fatherName || !village || !fatherPhone || !studentId) {
+                showNotification('لطفا تمام فیلدها را پر کنید', 'error');
+                return;
+            }
+            
+            // بررسی شماره کارت تکراری (به جز خود شاگرد)
+            const duplicateId = students.find(s => s.studentId === studentId && s.id !== editStudentId);
+            if (duplicateId) {
+                showNotification('شماره کارت تکراری است! لطفا شماره کارت دیگری وارد کنید.', 'error');
+                return;
+            }
+            
+            try {
+                const saveEditBtn = document.getElementById('save-edit-btn');
+                const originalText = saveEditBtn.innerHTML;
+                saveEditBtn.innerHTML = '<div class="loading"></div> در حال ذخیره...';
+                saveEditBtn.disabled = true;
+                
+                const updates = {
+                    name,
+                    fatherName,
+                    village,
+                    fatherPhone,
+                    studentId,
+                    status
+                };
+                
+                // آپدیت در Supabase
+                const updatedStudent = await updateStudent(editStudentId, updates);
+                
+                // آپدیت آرایه محلی
+                const studentIndex = students.findIndex(s => s.id === editStudentId);
+                if (studentIndex !== -1) {
+                    students[studentIndex] = {
+                        id: updatedStudent.id,
+                        name: updatedStudent.name,
+                        fatherName: updatedStudent.father_name,
+                        village: updatedStudent.village,
+                        fatherPhone: updatedStudent.father_phone,
+                        studentId: updatedStudent.student_id,
+                        status: updatedStudent.status,
+                        registrationDate: updatedStudent.registration_date || updatedStudent.created_at
+                    };
+                }
+                
+                // به‌روزرسانی UI
+                updateStats();
+                filterAndRenderStudents();
+                closeEditModal();
+                
+                showNotification('اطلاعات شاگرد با موفقیت ویرایش شد!');
+            } catch (error) {
+                console.error('Error updating student:', error);
+                if (error.code === '23505') {
+                    showNotification('شماره کارت تکراری است!', 'error');
+                } else {
+                    showNotification('خطا در ویرایش شاگرد: ' + error.message, 'error');
+                }
+            } finally {
+                const saveEditBtn = document.getElementById('save-edit-btn');
+                saveEditBtn.innerHTML = originalText;
+                saveEditBtn.disabled = false;
+            }
+        });
+
+        // بستن مودال ویرایش
+        function closeEditModal() {
+            document.getElementById('edit-modal').style.display = 'none';
+            editStudentId = null;
+            document.getElementById('edit-form').reset();
+        }
+
+        // رویدادهای بستن مودال
+        document.querySelector('.close-modal').addEventListener('click', closeEditModal);
+        document.getElementById('cancel-edit').addEventListener('click', closeEditModal);
+
+        // بستن مودال با کلیک خارج از آن
+        window.addEventListener('click', function(e) {
+            const modal = document.getElementById('edit-modal');
+            if (e.target === modal) {
+                closeEditModal();
+            }
+        });
+
+        // خروجی اکسل
+        document.getElementById('export-excel').addEventListener('click', function() {
+            if (students.length === 0) {
+                showNotification('هیچ داده‌ای برای خروجی وجود ندارد!', 'error');
+                return;
+            }
+            
+            try {
+                // آماده کردن داده‌ها برای اکسل
+                const data = students.map((student, index) => ({
+                    'ردیف': index + 1,
+                    'اسم شاگرد': student.name,
+                    'اسم والد': student.fatherName,
+                    'قریه': student.village,
+                    'شماره والد': student.fatherPhone,
+                    'شماره کارت': student.studentId,
+                    'وضعیت': student.status === 'active' ? 'تایید شده' : 'تعلیق شده',
+                    'تاریخ ثبت': new Date(student.registrationDate).toLocaleDateString('fa-IR')
+                }));
+                
+                // ایجاد workbook و worksheet
+                const worksheet = XLSX.utils.json_to_sheet(data);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "شاگردان");
+                
+                // تنظیم عرض ستون‌ها
+                const wscols = [
+                    {wch: 8},   // ردیف
+                    {wch: 20},  // اسم شاگرد
+                    {wch: 20},  // اسم والد
+                    {wch: 15},  // قریه
+                    {wch: 15},  // شماره والد
+                    {wch: 15},  // شماره کارت
+                    {wch: 15},  // وضعیت
+                    {wch: 15}   // تاریخ ثبت
+                ];
+                worksheet['!cols'] = wscols;
+                
+                // دانلود فایل اکسل
+                const fileName = `شاگردان_خوارزمی_${new Date().toLocaleDateString('fa-IR').replace(/\//g, '-')}.xlsx`;
+                XLSX.writeFile(workbook, fileName);
+                
+                showNotification('فایل اکسل با موفقیت دانلود شد!');
+            } catch (error) {
+                console.error('خطا در ایجاد فایل اکسل:', error);
+                showNotification('خطا در ایجاد فایل اکسل!', 'error');
+            }
+        });
+
+        // چاپ گزارش
+        document.getElementById('print-report').addEventListener('click', function() {
+            if (students.length === 0) {
+                showNotification('هیچ داده‌ای برای چاپ وجود ندارد!', 'error');
+                return;
+            }
+            
+            try {
+                const printContent = `
+                    <html dir="rtl">
+                    <head>
+                        <title>گزارش شاگردان خوارزمی</title>
+                        <style>
+                            body { font-family: Tahoma, sans-serif; margin: 20px; direction: rtl; }
+                            h1 { text-align: center; color: #2c3e50; }
+                            h2 { text-align: center; color: #3498db; margin-bottom: 30px; }
+                            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                            th, td { border: 1px solid #ddd; padding: 10px; text-align: right; }
+                            th { background-color: #f2f2f2; font-weight: bold; }
+                            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #2c3e50; padding-bottom: 20px; }
+                            .stats { display: flex; justify-content: space-around; margin: 20px 0; padding: 15px; background-color: #f9f9f9; border-radius: 8px; }
+                            .stat-item { text-align: center; }
+                            .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #777; border-top: 1px solid #ddd; padding-top: 20px; }
+                            .print-date { text-align: left; margin-bottom: 20px; font-size: 14px; }
+                            @media print {
+                                body { margin: 0; padding: 10px; }
+                                table { font-size: 12px; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h1>سیستم مدیریت شاگردان خوارزمی</h1>
+                            <h2>گزارش جامع شاگردان</h2>
+                        </div>
+                        
+                        <div class="print-date">
+                            <p>تاریخ چاپ: ${new Date().toLocaleString('fa-IR')}</p>
+                        </div>
+                        
+                        <div class="stats">
+                            <div class="stat-item">
+                                <h3>${students.length}</h3>
+                                <p>مجموع شاگردان</p>
+                            </div>
+                            <div class="stat-item">
+                                <h3>${students.filter(s => s.status === 'active').length}</h3>
+                                <p>تایید شده</p>
+                            </div>
+                            <div class="stat-item">
+                                <h3>${students.filter(s => s.status === 'suspended').length}</h3>
+                                <p>تعلیق شده</p>
+                            </div>
+                        </div>
+                        
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ردیف</th>
+                                    <th>اسم شاگرد</th>
+                                    <th>اسم والد</th>
+                                    <th>قریه</th>
+                                    <th>شماره والد</th>
+                                    <th>شماره کارت</th>
+                                    <th>وضعیت</th>
+                                    <th>تاریخ ثبت</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${students.map((student, index) => `
+                                    <tr>
+                                        <td>${index + 1}</td>
+                                        <td>${student.name}</td>
+                                        <td>${student.fatherName}</td>
+                                        <td>${student.village}</td>
+                                        <td dir="ltr">${student.fatherPhone}</td>
+                                        <td>${student.studentId}</td>
+                                        <td>${student.status === 'active' ? 'تایید شده' : 'تعلیق شده'}</td>
+                                        <td>${new Date(student.registrationDate || new Date()).toLocaleDateString('fa-IR')}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                        
+                        <div class="footer">
+                            <p>سیستم مدیریت شاگردان خوارزمی - چاپ در ${new Date().toLocaleString('fa-IR')}</p>
+                            <p>این گزارش به صورت خودکار تولید شده است</p>
+                        </div>
+                    </body>
+                    </html>
+                `;
+                
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(printContent);
+                printWindow.document.close();
+                
+                // تأخیر برای اطمینان از لود کامل محتوا
+                setTimeout(() => {
+                    printWindow.print();
+                    printWindow.close();
+                }, 500);
+                
+            } catch (error) {
+                console.error('خطا در چاپ گزارش:', error);
+                showNotification('خطا در چاپ گزارش!', 'error');
+            }
+        });
+
+        // خروجی PDF
+        document.getElementById('export-pdf').addEventListener('click', function() {
+            if (students.length === 0) {
+                showNotification('هیچ داده‌ای برای خروجی وجود ندارد!', 'error');
+                return;
+            }
+            
+            try {
+                // استفاده از jsPDF
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('p', 'mm', 'a4');
+                
+                // عنوان گزارش
+                doc.setFontSize(20);
+                doc.setTextColor(40, 40, 40);
+                doc.text('گزارش شاگردان سیستم خوارزمی', 105, 20, { align: 'center' });
+                
+                doc.setFontSize(12);
+                doc.text(`تاریخ گزارش: ${new Date().toLocaleDateString('fa-IR')}`, 105, 30, { align: 'center' });
+                
+                // آمار
+                doc.setFontSize(11);
+                doc.text(`تعداد کل: ${students.length} شاگرد`, 20, 45);
+                doc.text(`تایید شده: ${students.filter(s => s.status === 'active').length}`, 105, 45, { align: 'center' });
+                doc.text(`تعلیق شده: ${students.filter(s => s.status === 'suspended').length}`, 190, 45, { align: 'right' });
+                
+                // آماده کردن داده‌ها برای جدول
+                const tableData = students.map((student, index) => [
+                    index + 1,
+                    student.name,
+                    student.fatherName,
+                    student.village,
+                    student.fatherPhone,
+                    student.studentId,
+                    student.status === 'active' ? 'تایید شده' : 'تعلیق شده',
+                    new Date(student.registrationDate).toLocaleDateString('fa-IR')
+                ]);
+                
+                // ایجاد جدول
+                doc.autoTable({
+                    startY: 55,
+                    head: [['ردیف', 'اسم شاگرد', 'اسم والد', 'قریه', 'شماره والد', 'شماره کارت', 'وضعیت', 'تاریخ ثبت']],
+                    body: tableData,
+                    theme: 'grid',
+                    headStyles: { fillColor: [44, 62, 80], textColor: [255, 255, 255], fontStyle: 'bold' },
+                    styles: { font: 'tahoma', fontSize: 9, halign: 'right' },
+                    columnStyles: {
+                        0: { cellWidth: 10 },
+                        1: { cellWidth: 25 },
+                        2: { cellWidth: 25 },
+                        3: { cellWidth: 20 },
+                        4: { cellWidth: 25 },
+                        5: { cellWidth: 20 },
+                        6: { cellWidth: 20 },
+                        7: { cellWidth: 20 }
+                    }
+                });
+                
+                // ذخیره فایل PDF
+                const fileName = `شاگردان_خوارزمی_${new Date().toLocaleDateString('fa-IR').replace(/\//g, '-')}.pdf`;
+                doc.save(fileName);
+                
+                showNotification('فایل PDF با موفقیت دانلود شد!');
+            } catch (error) {
+                console.error('خطا در ایجاد فایل PDF:', error);
+                showNotification('خطا در ایجاد فایل PDF!', 'error');
+            }
+        });
+
+        // رفرش داده‌ها
+        document.getElementById('refresh-data').addEventListener('click', function() {
+            fetchStudents();
+        });
+
+        // جستجو و فیلتر
+        document.getElementById('search-input').addEventListener('input', filterAndRenderStudents);
+        document.getElementById('filter-status').addEventListener('change', filterAndRenderStudents);
+
+        // مقداردهی اولیه
+        document.addEventListener('DOMContentLoaded', function() {
+            // بارگذاری اولیه داده‌ها
+            fetchStudents();
+            
+            // نمایش پیام خوش‌آمد
+            setTimeout(() => {
+                showNotification('سیستم مدیریت شاگردان خوارزمی آماده است!', 'info');
+            }, 1500);
+            
+            // تنظیم Real-time subscription برای تغییرات
+            setupRealtimeSubscription();
+        });
+
+        // تنظیم Real-time subscription (اختیاری)
+        async function setupRealtimeSubscription() {
+            try {
+                const subscription = supabase
+                    .channel('students-changes')
+                    .on('postgres_changes', 
+                        { 
+                            event: '*', 
+                            schema: 'public', 
+                            table: 'students' 
+                        }, 
+                        (payload) => {
+                            console.log('Change received:', payload);
+                            fetchStudents(); // رفرش داده‌ها
+                        }
+                    )
+                    .subscribe();
+                    
+                console.log('Real-time subscription established');
+            } catch (error) {
+                console.warn('Real-time subscription failed:', error);
+            }
+        }
+    </script>
+</body>
+  </html>
