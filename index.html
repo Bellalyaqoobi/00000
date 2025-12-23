@@ -1,0 +1,1821 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سیستم مدیریت شاگردان خوارزمی</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --dark-color: #2c3e50;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding-bottom: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 25px 0;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--success-color), var(--secondary-color));
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        .logo {
+            font-size: 3rem;
+            margin-left: 20px;
+            color: #fff;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.95;
+            font-weight: 300;
+        }
+
+        .connection-status {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.1);
+            padding: 8px 16px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #27ae60;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background-color: #27ae60;
+        }
+
+        .status-indicator.disconnected {
+            background-color: #e74c3c;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 992px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 12px;
+            padding: 28px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+            margin-bottom: 25px;
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.12);
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            margin-bottom: 24px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid var(--light-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-title i {
+            color: var(--secondary-color);
+        }
+
+        .form-group {
+            margin-bottom: 22px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: var(--dark-color);
+            font-size: 1.05rem;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1.05rem;
+            transition: all 0.3s;
+            background-color: #fafafa;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            background-color: white;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px 28px;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-align: center;
+            min-width: 140px;
+        }
+
+        .btn:hover {
+            background-color: #2980b9;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background-color: var(--success-color);
+        }
+
+        .btn-success:hover {
+            background-color: #219653;
+            box-shadow: 0 6px 15px rgba(39, 174, 96, 0.3);
+        }
+
+        .btn-warning {
+            background-color: var(--warning-color);
+        }
+
+        .btn-warning:hover {
+            background-color: #e67e22;
+            box-shadow: 0 6px 15px rgba(243, 156, 18, 0.3);
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+        }
+
+        .btn-danger:hover {
+            background-color: #c0392b;
+            box-shadow: 0 6px 15px rgba(231, 76, 60, 0.3);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 28px;
+            flex-wrap: wrap;
+        }
+
+        .btn-group .btn {
+            flex: 1;
+            min-width: 130px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .action-btn {
+            padding: 10px 14px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+
+        .action-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-badge i {
+            font-size: 0.8rem;
+        }
+
+        .status-active {
+            background-color: rgba(39, 174, 96, 0.15);
+            color: var(--success-color);
+            border: 1px solid rgba(39, 174, 96, 0.3);
+        }
+
+        .status-suspended {
+            background-color: rgba(231, 76, 60, 0.15);
+            color: var(--danger-color);
+            border: 1px solid rgba(231, 76, 60, 0.3);
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+            background: white;
+            margin-top: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        th, td {
+            padding: 16px;
+            text-align: right;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
+        }
+
+        th {
+            background-color: #f8fafc;
+            font-weight: 700;
+            color: var(--primary-color);
+            position: sticky;
+            top: 0;
+            font-size: 1.05rem;
+            border-bottom: 2px solid var(--secondary-color);
+        }
+
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 24px;
+            margin-bottom: 35px;
+        }
+
+        .stat-card {
+            background-color: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            border-top: 5px solid var(--secondary-color);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card.total {
+            border-top-color: var(--primary-color);
+        }
+
+        .stat-card.active {
+            border-top-color: var(--success-color);
+        }
+
+        .stat-card.suspended {
+            border-top-color: var(--danger-color);
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            margin: 15px 0;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat-title {
+            font-size: 1.1rem;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .export-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 60px 20px;
+            color: #777;
+        }
+
+        .no-data i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: #e0e0e0;
+        }
+
+        .no-data p {
+            font-size: 1.2rem;
+            margin-top: 10px;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 25px;
+            color: #666;
+            font-size: 1rem;
+            border-top: 1px solid #eee;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 550px;
+            padding: 35px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+            animation: slideUp 0.4s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .modal-header h2 {
+            color: var(--primary-color);
+            font-size: 1.8rem;
+        }
+
+        .close-modal {
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: #777;
+            transition: color 0.3s;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .close-modal:hover {
+            color: var(--danger-color);
+            background-color: rgba(231, 76, 60, 0.1);
+        }
+
+        .search-filter {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 25px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .search-filter input {
+            flex: 1;
+            padding: 12px 18px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .search-filter select {
+            width: 160px;
+            padding: 12px 18px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .notification {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            padding: 18px 28px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            z-index: 1001;
+            opacity: 0;
+            transform: translateX(100px);
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background-color: var(--success-color);
+            border-left: 5px solid #1e8449;
+        }
+
+        .notification.error {
+            background-color: var(--danger-color);
+            border-left: 5px solid #b03a2e;
+        }
+
+        .notification.info {
+            background-color: var(--secondary-color);
+            border-left: 5px solid #1f618d;
+        }
+
+        .notification.warning {
+            background-color: var(--warning-color);
+            border-left: 5px solid #b9770e;
+        }
+
+        .notification i {
+            font-size: 1.5rem;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1002;
+            color: white;
+            font-size: 1.3rem;
+            gap: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .loading-overlay.hidden {
+            display: none;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(255,255,255,0.1);
+            border-radius: 50%;
+            border-top-color: var(--secondary-color);
+            animation: spin 1s linear infinite;
+        }
+
+        .student-id-input {
+            position: relative;
+        }
+
+        .student-id-input .check-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--success-color);
+            display: none;
+        }
+
+        .student-id-input.valid .check-icon {
+            display: block;
+        }
+
+        .student-id-input.valid input {
+            border-color: var(--success-color);
+            background-color: rgba(39, 174, 96, 0.05);
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            
+            .card {
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+            
+            table {
+                border: 1px solid #ddd;
+            }
+            
+            th, td {
+                border: 1px solid #ddd;
+            }
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .form-actions .btn {
+            flex: 1;
+        }
+
+        .database-actions {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .timestamp {
+            font-size: 0.9rem;
+            color: #888;
+            font-family: monospace;
+            direction: ltr;
+            text-align: left;
+        }
+
+        .phone-number {
+            direction: ltr;
+            text-align: left;
+            font-family: monospace;
+            font-weight: 500;
+        }
+
+        .highlight-new {
+            animation: highlight 2s ease;
+        }
+
+        @keyframes highlight {
+            0% { background-color: rgba(52, 152, 219, 0.3); }
+            100% { background-color: transparent; }
+        }
+    </style>
+</head>
+<body>
+    <div class="notification" id="notification"></div>
+    
+    <div class="loading-overlay hidden" id="loading-overlay">
+        <div class="loading-spinner"></div>
+        <span id="loading-text">در حال بارگذاری...</span>
+    </div>
+    
+    <div class="container">
+        <header>
+            <div class="connection-status">
+                <div class="status-indicator connected" id="db-status"></div>
+                <span id="db-status-text">متصل به دیتابیس</span>
+            </div>
+            <div class="logo-container">
+                <i class="fas fa-graduation-cap logo"></i>
+                <div>
+                    <h1>سیستم مدیریت شاگردان خوارزمی</h1>
+                    <p class="subtitle">مدیریت ثبت‌نام، تایید و تعلیق شاگردان کورس</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="stats">
+            <div class="stat-card total">
+                <div class="stat-title">مجموع شاگردان</div>
+                <div class="stat-number" id="total-students">0</div>
+            </div>
+            <div class="stat-card active">
+                <div class="stat-title">شاگردان تایید شده</div>
+                <div class="stat-number" id="active-students">0</div>
+            </div>
+            <div class="stat-card suspended">
+                <div class="stat-title">شاگردان تعلیق شده</div>
+                <div class="stat-number" id="suspended-students">0</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="left-column">
+                <div class="card">
+                    <h2 class="card-title"><i class="fas fa-user-plus"></i> ثبت شاگرد جدید</h2>
+                    <form id="student-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="name"><i class="fas fa-user"></i> اسم شاگرد</label>
+                                <input type="text" id="name" required placeholder="مثال: احمد کریمی">
+                            </div>
+                            <div class="form-group">
+                                <label for="father-name"><i class="fas fa-user-friends"></i> اسم والد</label>
+                                <input type="text" id="father-name" required placeholder="مثال: محمد">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="village"><i class="fas fa-home"></i> قریه</label>
+                            <input type="text" id="village" required placeholder="مثال: کابل">
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="father-phone"><i class="fas fa-phone"></i> شماره والد</label>
+                                <input type="tel" id="father-phone" required placeholder="مثال: 0798123456" pattern="[0-9]{10}">
+                            </div>
+                            <div class="form-group student-id-input" id="student-id-container">
+                                <label for="student-id"><i class="fas fa-id-card"></i> شماره کارت</label>
+                                <input type="text" id="student-id" required placeholder="مثال: STU001">
+                                <i class="fas fa-check-circle check-icon"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="status"><i class="fas fa-info-circle"></i> وضعیت</label>
+                            <select id="status" required>
+                                <option value="active">✅ تایید شده</option>
+                                <option value="suspended">⏸️ تعلیق شده</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-success" id="submit-btn">
+                                <i class="fas fa-save"></i> ذخیره شاگرد
+                            </button>
+                            <button type="button" class="btn" id="reset-form">
+                                <i class="fas fa-redo"></i> پاک کردن
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card no-print">
+                    <h2 class="card-title"><i class="fas fa-download"></i> خروجی و گزارش</h2>
+                    
+                    <div class="export-options">
+                        <button class="btn btn-success" id="export-excel">
+                            <i class="fas fa-file-excel"></i> اکسل
+                        </button>
+                        <button class="btn btn-warning" id="print-report">
+                            <i class="fas fa-print"></i> چاپ
+                        </button>
+                        <button class="btn btn-danger" id="export-pdf">
+                            <i class="fas fa-file-pdf"></i> PDF
+                        </button>
+                        <button class="btn" id="refresh-data" style="background-color: #9b59b6;">
+                            <i class="fas fa-sync-alt"></i> رفرش
+                        </button>
+                    </div>
+
+                    <div class="database-actions">
+                        <button class="btn" id="create-table-btn" style="background-color: #e67e22; width: 100%;">
+                            <i class="fas fa-database"></i> ایجاد جدول دیتابیس
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-column">
+                <div class="card">
+                    <h2 class="card-title"><i class="fas fa-users"></i> لیست شاگردان</h2>
+                    
+                    <div class="search-filter no-print">
+                        <input type="text" id="search-input" placeholder="جستجوی شاگرد...">
+                        <select id="filter-status">
+                            <option value="all">همه وضعیت‌ها</option>
+                            <option value="active">تایید شده</option>
+                            <option value="suspended">تعلیق شده</option>
+                        </select>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table id="students-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>اسم شاگرد</th>
+                                    <th>اسم والد</th>
+                                    <th>قریه</th>
+                                    <th>شماره والد</th>
+                                    <th>شماره کارت</th>
+                                    <th>وضعیت</th>
+                                    <th>تاریخ ثبت</th>
+                                    <th class="no-print">عملیات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="students-list">
+                                <!-- داده‌های شاگردان اینجا نمایش داده می‌شود -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>سیستم مدیریت شاگردان خوارزمی - تمام حقوق محفوظ است © 2023</p>
+            <p>تعداد کل شاگردان: <span id="footer-total">0</span> | تایید شده: <span id="footer-active">0</span> | تعلیق شده: <span id="footer-suspended">0</span></p>
+            <p class="timestamp" id="last-update">آخرین بروزرسانی: --</p>
+        </footer>
+    </div>
+
+    <!-- مودال ویرایش شاگرد -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-edit"></i> ویرایش اطلاعات شاگرد</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <form id="edit-form">
+                <input type="hidden" id="edit-id">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-name">اسم شاگرد</label>
+                        <input type="text" id="edit-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-father-name">اسم والد</label>
+                        <input type="text" id="edit-father-name" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-village">قریه</label>
+                    <input type="text" id="edit-village" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-father-phone">شماره والد</label>
+                        <input type="tel" id="edit-father-phone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-student-id">شماره کارت</label>
+                        <input type="text" id="edit-student-id" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-status">وضعیت</label>
+                    <select id="edit-status" required>
+                        <option value="active">تایید شده</option>
+                        <option value="suspended">تعلیق شده</option>
+                    </select>
+                </div>
+                
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-success" id="save-edit-btn">
+                        <i class="fas fa-save"></i> ذخیره تغییرات
+                    </button>
+                    <button type="button" class="btn btn-danger" id="cancel-edit">
+                        <i class="fas fa-times"></i> انصراف
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        // تنظیمات Supabase
+        const SUPABASE_URL = 'https://wuyhybsocviswsfnixdp.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1eWh5YnNvY3Zpc3dzZm5peGRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY0Nzg2MzIsImV4cCI6MjA4MjA1NDYzMn0.DXdz7v17Q3qmX18hCMFn6HmBwBQK0-EViKZlfaezDhQ';
+        
+        // Initialize Supabase client
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        let students = [];
+        let editStudentId = null;
+        let filteredStudents = [];
+        let dbConnected = false;
+
+        // تابع نمایش لودینگ
+        function showLoading(show, text = 'در حال بارگذاری...') {
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const loadingText = document.getElementById('loading-text');
+            
+            if (show) {
+                loadingText.textContent = text;
+                loadingOverlay.classList.remove('hidden');
+            } else {
+                loadingOverlay.classList.add('hidden');
+            }
+        }
+
+        // نمایش نوتیفیکیشن
+        function showNotification(message, type = 'success', duration = 4000) {
+            const notification = document.getElementById('notification');
+            notification.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
+                <span>${message}</span>
+            `;
+            notification.className = `notification ${type} show`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, duration);
+        }
+
+        // آپدیت وضعیت اتصال دیتابیس
+        function updateConnectionStatus(connected) {
+            const statusIndicator = document.getElementById('db-status');
+            const statusText = document.getElementById('db-status-text');
+            
+            dbConnected = connected;
+            
+            if (connected) {
+                statusIndicator.className = 'status-indicator connected';
+                statusText.textContent = 'متصل به دیتابیس';
+                statusText.style.color = '#27ae60';
+            } else {
+                statusIndicator.className = 'status-indicator disconnected';
+                statusText.textContent = 'قطع ارتباط با دیتابیس';
+                statusText.style.color = '#e74c3c';
+            }
+        }
+
+        // تابع تست اتصال به دیتابیس
+        async function testDatabaseConnection() {
+            try {
+                const { data, error } = await supabase
+                    .from('students')
+                    .select('id')
+                    .limit(1);
+                
+                if (error) {
+                    if (error.code === '42P01') {
+                        updateConnectionStatus(false);
+                        return { connected: false, error: 'TABLE_NOT_EXISTS' };
+                    }
+                    throw error;
+                }
+                
+                updateConnectionStatus(true);
+                return { connected: true };
+            } catch (error) {
+                console.error('خطا در اتصال به دیتابیس:', error);
+                updateConnectionStatus(false);
+                return { connected: false, error: error.message };
+            }
+        }
+
+        // ایجاد جدول در دیتابیس
+        async function createTable() {
+            try {
+                showLoading(true, 'در حال ایجاد جدول...');
+                
+                // اجرای SQL برای ایجاد جدول
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify({
+                        query: `
+                            CREATE TABLE IF NOT EXISTS students (
+                                id BIGSERIAL PRIMARY KEY,
+                                name TEXT NOT NULL,
+                                father_name TEXT NOT NULL,
+                                village TEXT NOT NULL,
+                                father_phone TEXT NOT NULL,
+                                student_id TEXT UNIQUE NOT NULL,
+                                status TEXT NOT NULL CHECK (status IN ('active', 'suspended')),
+                                registration_date DATE DEFAULT CURRENT_DATE,
+                                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                            );
+                            
+                            ALTER TABLE students DISABLE ROW LEVEL SECURITY;
+                        `
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('خطا در ایجاد جدول');
+                }
+
+                showNotification('✅ جدول با موفقیت ایجاد شد', 'success');
+                return true;
+            } catch (error) {
+                console.error('خطا در ایجاد جدول:', error);
+                showNotification('❌ خطا در ایجاد جدول. لطفا دستی ایجاد کنید.', 'error');
+                return false;
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // ذخیره شاگرد در دیتابیس
+        async function saveStudent(student) {
+            try {
+                const { data, error } = await supabase
+                    .from('students')
+                    .insert([{
+                        name: student.name,
+                        father_name: student.fatherName,
+                        village: student.village,
+                        father_phone: student.fatherPhone,
+                        student_id: student.studentId,
+                        status: student.status
+                    }])
+                    .select();
+                
+                if (error) {
+                    if (error.code === '42P01') {
+                        throw new Error('TABLE_NOT_EXISTS');
+                    }
+                    throw error;
+                }
+                return data[0];
+            } catch (error) {
+                console.error('Error saving student:', error);
+                throw error;
+            }
+        }
+
+        // دریافت همه شاگردان از دیتابیس
+        async function fetchStudents() {
+            try {
+                showLoading(true, 'در حال دریافت داده‌ها...');
+                
+                const { data, error } = await supabase
+                    .from('students')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    if (error.code === '42P01') {
+                        updateConnectionStatus(false);
+                        showNotification('جدول students وجود ندارد. لطفا ابتدا جدول را ایجاد کنید.', 'warning');
+                        return;
+                    }
+                    throw error;
+                }
+                
+                students = data.map(student => ({
+                    id: student.id,
+                    name: student.name,
+                    fatherName: student.father_name,
+                    village: student.village,
+                    fatherPhone: student.father_phone,
+                    studentId: student.student_id,
+                    status: student.status,
+                    registrationDate: student.registration_date || student.created_at,
+                    createdAt: student.created_at
+                }));
+                
+                updateStats();
+                filterAndRenderStudents();
+                updateConnectionStatus(true);
+                updateLastUpdateTime();
+                
+            } catch (error) {
+                console.error('Error fetching students:', error);
+                showNotification('خطا در بارگذاری داده‌ها: ' + error.message, 'error');
+                updateConnectionStatus(false);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // به‌روزرسانی شاگرد در دیتابیس
+        async function updateStudent(id, updates) {
+            try {
+                const { data, error } = await supabase
+                    .from('students')
+                    .update({
+                        name: updates.name,
+                        father_name: updates.fatherName,
+                        village: updates.village,
+                        father_phone: updates.fatherPhone,
+                        student_id: updates.studentId,
+                        status: updates.status,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', id)
+                    .select();
+                
+                if (error) throw error;
+                return data[0];
+            } catch (error) {
+                console.error('Error updating student:', error);
+                throw error;
+            }
+        }
+
+        // حذف شاگرد از دیتابیس
+        async function deleteStudentFromDB(id) {
+            try {
+                const { error } = await supabase
+                    .from('students')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) throw error;
+                return true;
+            } catch (error) {
+                console.error('Error deleting student:', error);
+                throw error;
+            }
+        }
+
+        // تغییر وضعیت شاگرد
+        async function toggleStudentStatus(id) {
+            try {
+                const student = students.find(s => s.id === id);
+                if (!student) return;
+                
+                const newStatus = student.status === 'active' ? 'suspended' : 'active';
+                
+                const { error } = await supabase
+                    .from('students')
+                    .update({ status: newStatus })
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                student.status = newStatus;
+                updateStats();
+                filterAndRenderStudents();
+                updateLastUpdateTime();
+                
+                showNotification(`وضعیت شاگرد به "${newStatus === 'active' ? 'تایید شده' : 'تعلیق شده'}" تغییر یافت`);
+            } catch (error) {
+                console.error('Error toggling status:', error);
+                showNotification('خطا در تغییر وضعیت: ' + error.message, 'error');
+            }
+        }
+
+        // آپدیت آمار
+        function updateStats() {
+            const total = students.length;
+            const active = students.filter(s => s.status === 'active').length;
+            const suspended = students.filter(s => s.status === 'suspended').length;
+            
+            document.getElementById('total-students').textContent = total;
+            document.getElementById('active-students').textContent = active;
+            document.getElementById('suspended-students').textContent = suspended;
+            
+            document.getElementById('footer-total').textContent = total;
+            document.getElementById('footer-active').textContent = active;
+            document.getElementById('footer-suspended').textContent = suspended;
+        }
+
+        // آپدیت زمان آخرین بروزرسانی
+        function updateLastUpdateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleString('fa-IR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('last-update').textContent = `آخرین بروزرسانی: ${timeString}`;
+        }
+
+        // فیلتر و نمایش شاگردان
+        function filterAndRenderStudents() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const filterStatus = document.getElementById('filter-status').value;
+            
+            filteredStudents = students.filter(student => {
+                const matchesSearch = 
+                    student.name.toLowerCase().includes(searchTerm) ||
+                    student.fatherName.toLowerCase().includes(searchTerm) ||
+                    student.village.toLowerCase().includes(searchTerm) ||
+                    student.fatherPhone.includes(searchTerm) ||
+                    student.studentId.toLowerCase().includes(searchTerm);
+                
+                const matchesStatus = filterStatus === 'all' || student.status === filterStatus;
+                
+                return matchesSearch && matchesStatus;
+            });
+            
+            renderStudentsTable();
+        }
+
+        // نمایش شاگردان در جدول
+        function renderStudentsTable() {
+            const tbody = document.getElementById('students-list');
+            
+            if (filteredStudents.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="no-data">
+                            <i class="fas fa-user-graduate"></i>
+                            <p>${students.length === 0 ? 'هنوز هیچ شاگردی ثبت نشده است' : 'نتیجه‌ای یافت نشد'}</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            
+            filteredStudents.forEach((student, index) => {
+                const tr = document.createElement('tr');
+                const statusClass = student.status === 'active' ? 'status-active' : 'status-suspended';
+                const statusText = student.status === 'active' ? 'تایید شده' : 'تعلیق شده';
+                const regDate = student.registrationDate ? 
+                    new Date(student.registrationDate).toLocaleDateString('fa-IR') : 
+                    new Date(student.createdAt).toLocaleDateString('fa-IR');
+                
+                tr.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${student.name}</td>
+                    <td>${student.fatherName}</td>
+                    <td>${student.village}</td>
+                    <td class="phone-number">${student.fatherPhone}</td>
+                    <td><strong>${student.studentId}</strong></td>
+                    <td><span class="status-badge ${statusClass}"><i class="fas ${student.status === 'active' ? 'fa-check-circle' : 'fa-pause-circle'}"></i> ${statusText}</span></td>
+                    <td>${regDate}</td>
+                    <td class="no-print">
+                        <div class="actions">
+                            <button class="action-btn" style="background-color: #3498db; color: white;" title="ویرایش" onclick="editStudent(${student.id})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="action-btn" style="background-color: ${student.status === 'active' ? '#e74c3c' : '#27ae60'}; color: white;" title="تغییر وضعیت" onclick="toggleStatus(${student.id})">
+                                <i class="fas ${student.status === 'active' ? 'fa-user-slash' : 'fa-user-check'}"></i>
+                            </button>
+                            <button class="action-btn" style="background-color: #7f8c8d; color: white;" title="حذف" onclick="deleteStudent(${student.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                
+                tbody.appendChild(tr);
+            });
+        }
+
+        // اضافه کردن شاگرد جدید (بدون ریلود صفحه)
+        document.getElementById('student-form').addEventListener('submit', async function(e) {
+            e.preventDefault(); // جلوگیری از ریلود صفحه
+            
+            if (!dbConnected) {
+                showNotification('❌ ابتدا باید به دیتابیس متصل شوید', 'error');
+                return;
+            }
+            
+            const name = document.getElementById('name').value.trim();
+            const fatherName = document.getElementById('father-name').value.trim();
+            const village = document.getElementById('village').value.trim();
+            const fatherPhone = document.getElementById('father-phone').value.trim();
+            const studentId = document.getElementById('student-id').value.trim();
+            const status = document.getElementById('status').value;
+            
+            // اعتبارسنجی
+            if (!name || !fatherName || !village || !fatherPhone || !studentId) {
+                showNotification('لطفا تمام فیلدها را پر کنید', 'error');
+                return;
+            }
+            
+            // بررسی شماره تماس
+            if (!/^[0-9]{10}$/.test(fatherPhone)) {
+                showNotification('شماره تلفن باید 10 رقم باشد', 'error');
+                return;
+            }
+            
+            // بررسی شماره کارت تکراری
+            const duplicateId = students.find(s => s.studentId === studentId);
+            if (duplicateId) {
+                showNotification('شماره کارت تکراری است!', 'error');
+                return;
+            }
+            
+            try {
+                const submitBtn = document.getElementById('submit-btn');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<div class="loading"></div> در حال ذخیره...';
+                submitBtn.disabled = true;
+                
+                const newStudent = {
+                    name,
+                    fatherName,
+                    village,
+                    fatherPhone,
+                    studentId,
+                    status
+                };
+                
+                const savedStudent = await saveStudent(newStudent);
+                
+                // اضافه کردن به آرایه محلی (ابتدا)
+                students.unshift({
+                    id: savedStudent.id,
+                    name: savedStudent.name,
+                    fatherName: savedStudent.father_name,
+                    village: savedStudent.village,
+                    fatherPhone: savedStudent.father_phone,
+                    studentId: savedStudent.student_id,
+                    status: savedStudent.status,
+                    registrationDate: savedStudent.registration_date || savedStudent.created_at,
+                    createdAt: savedStudent.created_at
+                });
+                
+                // به‌روزرسانی UI
+                updateStats();
+                filterAndRenderStudents();
+                updateLastUpdateTime();
+                
+                // نمایش انیمیشن برای ردیف جدید
+                const firstRow = document.querySelector('#students-table tbody tr');
+                if (firstRow) {
+                    firstRow.classList.add('highlight-new');
+                    setTimeout(() => firstRow.classList.remove('highlight-new'), 2000);
+                }
+                
+                // ریست کردن فرم
+                this.reset();
+                
+                showNotification(`✅ شاگرد "${name}" با موفقیت ثبت شد!`, 'success');
+                
+            } catch (error) {
+                console.error('Error saving student:', error);
+                if (error.code === '23505') {
+                    showNotification('شماره کارت تکراری است!', 'error');
+                } else if (error.message === 'TABLE_NOT_EXISTS') {
+                    showNotification('جدول وجود ندارد. لطفا ابتدا جدول را ایجاد کنید.', 'error');
+                } else {
+                    showNotification('خطا در ثبت شاگرد: ' + error.message, 'error');
+                }
+            } finally {
+                const submitBtn = document.getElementById('submit-btn');
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> ذخیره شاگرد';
+                submitBtn.disabled = false;
+            }
+        });
+
+        // بررسی شماره کارت تکراری هنگام تایپ
+        document.getElementById('student-id').addEventListener('input', function() {
+            const studentId = this.value.trim();
+            const container = document.getElementById('student-id-container');
+            
+            if (studentId) {
+                const duplicateId = students.find(s => s.studentId === studentId);
+                if (duplicateId) {
+                    container.classList.remove('valid');
+                    showNotification('این شماره کارت قبلاً ثبت شده است', 'warning', 2000);
+                } else {
+                    container.classList.add('valid');
+                }
+            } else {
+                container.classList.remove('valid');
+            }
+        });
+
+        // ریست کردن فرم
+        document.getElementById('reset-form').addEventListener('click', function() {
+            document.getElementById('student-form').reset();
+            document.getElementById('student-id-container').classList.remove('valid');
+            showNotification('فرم بازنشانی شد', 'info');
+        });
+
+        // تغییر وضعیت شاگرد
+        window.toggleStatus = function(id) {
+            if (!dbConnected) {
+                showNotification('❌ ابتدا باید به دیتابیس متصل شوید', 'error');
+                return;
+            }
+            
+            if (confirm('آیا از تغییر وضعیت این شاگرد مطمئن هستید؟')) {
+                toggleStudentStatus(id);
+            }
+        };
+
+        // حذف شاگرد
+        window.deleteStudent = async function(id) {
+            if (!dbConnected) {
+                showNotification('❌ ابتدا باید به دیتابیس متصل شوید', 'error');
+                return;
+            }
+            
+            if (confirm('آیا از حذف این شاگرد مطمئن هستید؟ این عمل قابل برگشت نیست.')) {
+                try {
+                    showLoading(true, 'در حال حذف...');
+                    await deleteStudentFromDB(id);
+                    
+                    students = students.filter(s => s.id !== id);
+                    updateStats();
+                    filterAndRenderStudents();
+                    updateLastUpdateTime();
+                    
+                    showNotification('شاگرد با موفقیت حذف شد');
+                } catch (error) {
+                    console.error('Error deleting student:', error);
+                    showNotification('خطا در حذف شاگرد: ' + error.message, 'error');
+                } finally {
+                    showLoading(false);
+                }
+            }
+        };
+
+        // ویرایش شاگرد
+        window.editStudent = function(id) {
+            if (!dbConnected) {
+                showNotification('❌ ابتدا باید به دیتابیس متصل شوید', 'error');
+                return;
+            }
+            
+            const student = students.find(s => s.id === id);
+            if (!student) return;
+            
+            editStudentId = id;
+            
+            document.getElementById('edit-id').value = student.id;
+            document.getElementById('edit-name').value = student.name;
+            document.getElementById('edit-father-name').value = student.fatherName;
+            document.getElementById('edit-village').value = student.village;
+            document.getElementById('edit-father-phone').value = student.fatherPhone;
+            document.getElementById('edit-student-id').value = student.studentId;
+            document.getElementById('edit-status').value = student.status;
+            
+            document.getElementById('edit-modal').style.display = 'flex';
+        };
+
+        // ذخیره تغییرات ویرایش
+        document.getElementById('edit-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('edit-name').value.trim();
+            const fatherName = document.getElementById('edit-father-name').value.trim();
+            const village = document.getElementById('edit-village').value.trim();
+            const fatherPhone = document.getElementById('edit-father-phone').value.trim();
+            const studentId = document.getElementById('edit-student-id').value.trim();
+            const status = document.getElementById('edit-status').value;
+            
+            // اعتبارسنجی
+            if (!name || !fatherName || !village || !fatherPhone || !studentId) {
+                showNotification('لطفا تمام فیلدها را پر کنید', 'error');
+                return;
+            }
+            
+            // بررسی شماره کارت تکراری (به جز خود شاگرد)
+            const duplicateId = students.find(s => s.studentId === studentId && s.id !== editStudentId);
+            if (duplicateId) {
+                showNotification('شماره کارت تکراری است!', 'error');
+                return;
+            }
+            
+            try {
+                const saveEditBtn = document.getElementById('save-edit-btn');
+                const originalText = saveEditBtn.innerHTML;
+                saveEditBtn.innerHTML = '<div class="loading"></div> در حال ذخیره...';
+                saveEditBtn.disabled = true;
+                
+                const updates = {
+                    name,
+                    fatherName,
+                    village,
+                    fatherPhone,
+                    studentId,
+                    status
+                };
+                
+                const updatedStudent = await updateStudent(editStudentId, updates);
+                
+                // آپدیت آرایه محلی
+                const studentIndex = students.findIndex(s => s.id === editStudentId);
+                if (studentIndex !== -1) {
+                    students[studentIndex] = {
+                        id: updatedStudent.id,
+                        name: updatedStudent.name,
+                        fatherName: updatedStudent.father_name,
+                        village: updatedStudent.village,
+                        fatherPhone: updatedStudent.father_phone,
+                        studentId: updatedStudent.student_id,
+                        status: updatedStudent.status,
+                        registrationDate: updatedStudent.registration_date || updatedStudent.created_at,
+                        createdAt: updatedStudent.created_at
+                    };
+                }
+                
+                // به‌روزرسانی UI
+                updateStats();
+                filterAndRenderStudents();
+                updateLastUpdateTime();
+                closeEditModal();
+                
+                showNotification('✅ اطلاعات شاگرد با موفقیت ویرایش شد!');
+            } catch (error) {
+                console.error('Error updating student:', error);
+                if (error.code === '23505') {
+                    showNotification('شماره کارت تکراری است!', 'error');
+                } else {
+                    showNotification('خطا در ویرایش شاگرد: ' + error.message, 'error');
+                }
+            } finally {
+                const saveEditBtn = document.getElementById('save-edit-btn');
+                saveEditBtn.innerHTML = '<i class="fas fa-save"></i> ذخیره تغییرات';
+                saveEditBtn.disabled = false;
+            }
+        });
+
+        // بستن مودال ویرایش
+        function closeEditModal() {
+            document.getElementById('edit-modal').style.display = 'none';
+            editStudentId = null;
+            document.getElementById('edit-form').reset();
+        }
+
+        // رویدادهای بستن مودال
+        document.querySelector('.close-modal').addEventListener('click', closeEditModal);
+        document.getElementById('cancel-edit').addEventListener('click', closeEditModal);
+
+        // بستن مودال با کلیک خارج از آن
+        window.addEventListener('click', function(e) {
+            const modal = document.getElementById('edit-modal');
+            if (e.target === modal) {
+                closeEditModal();
+            }
+        });
+
+        // خروجی اکسل
+        document.getElementById('export-excel').addEventListener('click', function() {
+            if (students.length === 0) {
+                showNotification('هیچ داده‌ای برای خروجی وجود ندارد!', 'error');
+                return;
+            }
+            
+            try {
+                const data = students.map((student, index) => ({
+                    'ردیف': index + 1,
+                    'اسم شاگرد': student.name,
+                    'اسم والد': student.fatherName,
+                    'قریه': student.village,
+                    'شماره والد': student.fatherPhone,
+                    'شماره کارت': student.studentId,
+                    'وضعیت': student.status === 'active' ? 'تایید شده' : 'تعلیق شده',
+                    'تاریخ ثبت': new Date(student.registrationDate).toLocaleDateString('fa-IR')
+                }));
+                
+                const worksheet = XLSX.utils.json_to_sheet(data);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "شاگردان");
+                
+                const wscols = [
+                    {wch: 8}, {wch: 20}, {wch: 20}, {wch: 15},
+                    {wch: 15}, {wch: 15}, {wch: 15}, {wch: 15}
+                ];
+                worksheet['!cols'] = wscols;
+                
+                const fileName = `شاگردان_خوارزمی_${new Date().toLocaleDateString('fa-IR').replace(/\//g, '-')}.xlsx`;
+                XLSX.writeFile(workbook, fileName);
+                
+                showNotification('فایل اکسل با موفقیت دانلود شد!');
+            } catch (error) {
+                console.error('خطا در ایجاد فایل اکسل:', error);
+                showNotification('خطا در ایجاد فایل اکسل!', 'error');
+            }
+        });
+
+        // چاپ گزارش
+        document.getElementById('print-report').addEventListener('click', function() {
+            if (students.length === 0) {
+                showNotification('هیچ داده‌ای برای چاپ وجود ندارد!', 'error');
+                return;
+            }
+            
+            const printContent = `
+                <html dir="rtl">
+                <head>
+                    <title>گزارش شاگردان خوارزمی</title>
+                    <style>
+                        body { font-family: Tahoma, sans-serif; margin: 20px; direction: rtl; }
+                        h1 { text-align: center; color: #2c3e50; }
+                        h2 { text-align: center; color: #3498db; margin-bottom: 30px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #ddd; padding: 10px; text-align: right; }
+                        th { background-color: #f2f2f2; font-weight: bold; }
+                        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #2c3e50; padding-bottom: 20px; }
+                        .stats { display: flex; justify-content: space-around; margin: 20px 0; padding: 15px; background-color: #f9f9f9; border-radius: 8px; }
+                        .stat-item { text-align: center; }
+                        .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #777; border-top: 1px solid #ddd; padding-top: 20px; }
+                        .print-date { text-align: left; margin-bottom: 20px; font-size: 14px; }
+                        @media print {
+                            body { margin: 0; padding: 10px; }
+                            table { font-size: 12px; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>سیستم مدیریت شاگردان خوارزمی</h1>
+                        <h2>گزارش جامع شاگردان</h2>
+                    </div>
+                    
+                    <div class="print-date">
+                        <p>تاریخ چاپ: ${new Date().toLocaleString('fa-IR')}</p>
+                    </div>
+                    
+                    <div class="stats">
+                        <div class="stat-item">
+                            <h3>${students.length}</h3>
+                            <p>مجموع شاگردان</p>
+                        </div>
+                        <div class="stat-item">
+                            <h3>${students.filter(s => s.status === 'active').length}</h3>
+                            <p>تایید شده</p>
+                        </div>
+                        <div class="stat-item">
+                            <h3>${students.filter(s => s.status === 'suspended').length}</h3>
+                            <p>تعلیق شده</p>
+                        </div>
+                    </div>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ردیف</th>
+                                <th>اسم شاگرد</th>
+                                <th>اسم والد</th>
+                                <th>قریه</th>
+                                <th>شماره والد</th>
+                                <th>شماره کارت</th>
+                                <th>وضعیت</th>
+                                <th>تاریخ ثبت</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${students.map((student, index) => `
+                                <tr>
+                                    <td>${index + 1}</td>
+                                    <td>${student.name}</td>
+                                    <td>${student.fatherName}</td>
+                                    <td>${student.village}</td>
+                                    <td dir="ltr">${student.fatherPhone}</td>
+                                    <td>${student.studentId}</td>
+                                    <td>${student.status === 'active' ? 'تایید شده' : 'تعلیق شده'}</td>
+                                    <td>${new Date(student.registrationDate || new Date()).toLocaleDateString('fa-IR')}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    
+                    <div class="footer">
+                        <p>سیستم مدیریت شاگردان خوارزمی - چاپ در ${new Date().toLocaleString('fa-IR')}</p>
+                    </div>
+                </body>
+                </html>
+            `;
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 500);
+        });
+
+        // خروجی PDF
+        document.getElementById('export-pdf').addEventListener('click', function() {
+            if (students.length === 0) {
+                showNotification('هیچ داده‌ای برای خروجی وجود ندارد!', 'error');
+                return;
+            }
+            
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('p', 'mm', 'a4');
+                
+                doc.setFontSize(20);
+                doc.setTextColor(40, 40, 40);
+                doc.text('گزارش شاگردان سیستم خوارزمی', 105, 20, { align: 'center' });
+                
+                doc.setFontSize(12);
+                doc.text(`تاریخ گزارش: ${new Date().toLocaleDateString('fa-IR')}`, 105, 30, { align: 'center' });
+                
+                doc.setFontSize(11);
+                doc.text(`تعداد کل: ${students.length} شاگرد`, 20, 45);
+                doc.text(`تایید شده: ${students.filter(s => s.status === 'active').length}`, 105, 45, { align: 'center' });
+                doc.text(`تعلیق شده: ${students.filter(s => s.status === 'suspended').length}`, 190, 45, { align: 'right' });
+                
+                const tableData = students.map((student, index) => [
+                    index + 1,
+                    student.name,
+                    student.fatherName,
+                    student.village,
+                    student.fatherPhone,
+                    student.studentId,
+                    student.status === 'active' ? 'تایید شده' : 'تعلیق شده',
+                    new Date(student.registrationDate).toLocaleDateString('fa-IR')
+                ]);
+                
+                doc.autoTable({
+                    startY: 55,
+                    head: [['ردیف', 'اسم شاگرد', 'اسم والد', 'قریه', 'شماره والد', 'شماره کارت', 'وضعیت', 'تاریخ ثبت']],
+                    body: tableData,
+                    theme: 'grid',
+                    headStyles: { fillColor: [44, 62, 80], textColor: [255, 255, 255], fontStyle: 'bold' },
+                    styles: { font: 'tahoma', fontSize: 9, halign: 'right' },
+                    columnStyles: {
+                        0: { cellWidth: 10 },
+                        1: { cellWidth: 25 },
+                        2: { cellWidth: 25 },
+                        3: { cellWidth: 20 },
+                        4: { cellWidth: 25 },
+                        5: { cellWidth: 20 },
+                        6: { cellWidth: 20 },
+                        7: { cellWidth: 20 }
+                    }
+                });
+                
+                const fileName = `شاگردان_خوارزمی_${new Date().toLocaleDateString('fa-IR').replace(/\//g, '-')}.pdf`;
+                doc.save(fileName);
+                
+                showNotification('فایل PDF با موفقیت دانلود شد!');
+            } catch (error) {
+                console.error('خطا در ایجاد فایل PDF:', error);
+                showNotification('خطا در ایجاد فایل PDF!', 'error');
+            }
+        });
+
+        // رفرش داده‌ها
+        document.getElementById('refresh-data').addEventListener('click', function() {
+            fetchStudents();
+        });
+
+        // ایجاد جدول دیتابیس
+        document.getElementById('create-table-btn').addEventListener('click', async function() {
+            const created = await createTable();
+            if (created) {
+                setTimeout(() => {
+                    fetchStudents();
+                }, 1000);
+            }
+        });
+
+        // جستجو و فیلتر
+        document.getElementById('search-input').addEventListener('input', filterAndRenderStudents);
+        document.getElementById('filter-status').addEventListener('change', filterAndRenderStudents);
+
+        // مقداردهی اولیه
+        document.addEventListener('DOMContentLoaded', async function() {
+            // تست اتصال اولیه
+            const connection = await testDatabaseConnection();
+            
+            if (connection.connected) {
+                fetchStudents();
+                showNotification('✅ اتصال به دیتابیس برقرار شد', 'success');
+            } else {
+                showNotification('❌ اتصال به دیتابیس برقرار نشد. لطفا جدول را ایجاد کنید.', 'error');
+            }
+            
+            // آپدیت وضعیت هر 30 ثانیه
+            setInterval(async () => {
+                await testDatabaseConnection();
+            }, 30000);
+        });
+    </script>
+</body>
+</html>
